@@ -11,7 +11,7 @@ def cliente():
 
 def test_home(cliente):
     respuesta = cliente.get('/')
-    assert respuesta.status_code == 200
+    assert respuesta.status_code == 200  # nosec B101
 
 
 def test_health(cliente):
@@ -22,3 +22,4 @@ def test_health(cliente):
 def test_buscar_responde(cliente):
     respuesta = cliente.get('/buscar?id=1')
     assert respuesta.status_code in (200, 500)  # nosec B101 - depende de si la tabla existe
+
