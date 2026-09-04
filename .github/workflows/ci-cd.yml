@@ -1,0 +1,65 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt pytest
+      - run: pytest -v
+
+  bandit:
+    name: Bandit (SAST)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install bandit
+      - run: bandit app.py test_app.py -f txt
+
+  trivy:
+    name: Trivy (Vulnerabilidades de imagen)
+    runs-on: ubuntu-latest
+    needs: [test, bandit]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build imagen
+        run: docker build -t ejercicio-docker-audit:ci .
+      - name: Escanear con Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'ejercicio-docker-audit:ci'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'   # cambia a '1' si quieres que falle el pipeline con vulnerabilidades altas
+
+  deploy:
+    name: Deploy a EC2
+    runs-on: ubuntu-latest
+    needs: [test, bandit, trivy]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy por SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/labs/ejercicio-docker-audit-heidy
+            git pull origin main
+            docker compose down
+            docker compose up --build -d
