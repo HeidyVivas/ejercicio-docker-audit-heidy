@@ -2,3 +2,11 @@
 .venv/
 __pycache__/
 *.pyc
+# Llaves y credenciales
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+credentials/
